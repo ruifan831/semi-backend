@@ -6,12 +6,15 @@ const authJwt = expressjwt({
   isRevoked: isRevoked,
 }).unless({
   path: [
-    {url: /\/assets\/image(.*)/ , methods: ['GET', 'OPTIONS']},
+    {url: /\/assets\/(.*)/ , methods: ['GET', 'OPTIONS']},
     {url: /\/api\/v1\/products(.*)/ , methods: ['GET', 'OPTIONS']},
     {url: /\/api\/v1\/categories(.*)/ , methods: ['GET', 'OPTIONS'] },
     {url:/\/api\/v1\/orders(.*)/,methods:['POST','OPTIONS']},
     `${process.env.API_URL}/users/login`,
     `${process.env.API_URL}/users/register`,
+    /\/semiadmin\/*/,
+    /\/admin\/*/,
+
   ],
 });
 

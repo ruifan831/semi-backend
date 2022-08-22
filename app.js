@@ -20,6 +20,8 @@ app.use(express.json());
 app.use(morgan('tiny'));
 app.use(authJwt)
 app.use('/assets',express.static(__dirname + '/public/uploads'))
+app.use('/admin',express.static(__dirname+'/semiadmin/index.html'))
+app.use('/semiadmin',express.static(__dirname+'/semiadmin'))
 app.use(errorHandler)
 
 
