@@ -75,7 +75,6 @@ router.get("/:id", async (req, res) => {
 
 router.put("/:id", uploadOptions.single("image"), async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    console.log("Invalid id");
     return res.status(400).send("Invalid product id");
   }
   const category = await Category.findById(req.body.category);
@@ -130,6 +129,7 @@ router.delete("/:id", async (req, res) => {
 
 router.get("/get/count", async (req, res) => {
   const productCount = await Product.countDocuments();
+  console.log("Product Count: ",productCount)
   if (!productCount) {
     res.status(500).json({
       success: false,
@@ -155,9 +155,7 @@ router.put(
   "/gallery-images/:id",
   uploadOptions.array("images", 10),
   async (req, res) => {
-    console.log("in put")
     if (!mongoose.isValidObjectId(req.params.id)) {
-      console.log("Invalid id");
       return res.status(400).send("Invalid product id");
     }
     const files = req.files;

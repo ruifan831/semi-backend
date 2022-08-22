@@ -16,7 +16,6 @@ const authJwt = expressjwt({
 });
 
 async function isRevoked(req, token) {
-  console.log(token)
   if (!token.payload.isAdmin) {
     return true;
   }
