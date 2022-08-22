@@ -131,7 +131,7 @@ router.get("/get/count", async (req, res) => {
   const productCount = await Product.countDocuments();
   console.log("Product Count: ",productCount)
   if (!productCount) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
     });
   }
