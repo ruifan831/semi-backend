@@ -109,8 +109,8 @@ router.get('/get/count', async (req, res) => {
     const count = await User.countDocuments()
     console.log("User count:", count)
     if (!count){
-        return res.status(500).json({
-            success:false
+        return res.send({
+            userCount: 0
         })
     }
     res.send({
