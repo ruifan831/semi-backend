@@ -19,7 +19,7 @@ app.options('*', cors())
 app.use(express.json());
 app.use(morgan('tiny'));
 app.use(authJwt)
-app.use('/assets',express.static('/Users/ruifanxu/Desktop/semi/assets'))
+app.use('/assets',express.static(__dirname + '/public/uploads'))
 app.use(errorHandler)
 
 
@@ -32,6 +32,7 @@ mongoose.connect(process.env.CONNECTION_STRING,{
     useNewUrlParser:true,
     dbName:process.env.DB_NAME
 }).then(() => {
+    console.log("Using databse: "+ process.env.DB_NAME)
     console.log('Databse connection ready')
 }).catch((err) => {
     console.log(err)

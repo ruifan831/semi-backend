@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
     if (isValid) {
       uploadError = null;
     }
-    cb(uploadError, "/Users/ruifanxu/Desktop/semi/assets/image");
+    cb(uploadError, "public/uploads");
   },
   filename: function (req, file, cb) {
     const filename = file.originalname.replace(" ", "-");
