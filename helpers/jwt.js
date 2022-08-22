@@ -12,8 +12,10 @@ const authJwt = expressjwt({
     {url:/\/api\/v1\/orders(.*)/,methods:['POST','OPTIONS']},
     `${process.env.API_URL}/users/login`,
     `${process.env.API_URL}/users/register`,
-    /\/semiadmin\/*/,
-    /\/admin\/*/,
+    '/',
+    /\/.*\.js|\/style(.*)\.css|\/(.*)\.ico|\/primeicons(.*)/,
+    /\/semiadmin\/.*/,
+    /\/admin\/.*/,
 
   ],
 });

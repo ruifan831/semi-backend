@@ -20,15 +20,17 @@ app.use(express.json());
 app.use(morgan('tiny'));
 app.use(authJwt)
 app.use('/assets',express.static(__dirname + '/public/uploads'))
-app.use('/admin',express.static(__dirname+'/semiadmin/index.html'))
-app.use('/semiadmin',express.static(__dirname+'/semiadmin'))
+app.use('/admin',express.static(__dirname+'/semiadmin'))
 app.use(errorHandler)
-
 
 app.use(`${api}/products`, productsRouter)
 app.use(`${api}/categories`, categoriesRouter)
 app.use(`${api}/users`, usersRouter)
 app.use(`${api}/orders`, ordersRouter)
+// app.use('/mall',express.static(__dirname+'/semimall/'))
+
+app.use('/',express.static(__dirname+'/semimall/'))
+
 
 mongoose.connect(process.env.CONNECTION_STRING,{
     useNewUrlParser:true,
