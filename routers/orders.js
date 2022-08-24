@@ -4,7 +4,11 @@ const { OrderItem } = require('../models/orderItem');
 const { Product } = require('../models/product')
 const router = express.Router();
 const mongoose = require("mongoose")
-const stripe = require('stripe')('sk_test_51LZ8CRB9rPj09Soui9mYxbtM4zHH5Gu05WCrTkyeVf0IXBlYSeit259WAz9T1MN0DluwmFbgb4roFqEHXolp8GpU00vK0NURin')
+const Clover = require("clover-ecomm-sdk");
+const bcrypt = require('bcryptjs');
+
+const { User } = require('../models/user');
+const stripe = require('stripe')('sk_test_51LaAR7CE6qT7hyzR3uyVhJ0qhYOUOgyZmRclwVmZtOxkApeHL9cpIAOoJWYGICHYHUVX5JP0VBioEHPh384j8Ryt00L27bp24j')
 
 router.get(`/`, async (req, res) => {
     const orderList = await Order.find().populate('user', 'name')
@@ -49,9 +53,23 @@ router.post('/', async (req, res) => {
         const totalPrice = orderItem.product.price * orderItem.quantity;
         return totalPrice
     }))
-
-    const totalPrice = totalPrices.reduce((a, b) => a + b, 0);
-
+    console.log(req.body)
+    let userId = req.body.user
+    if (req.body.user == "guestCheckOut"){
+        let user = new User({
+            firstname:req.body.firstname,
+            lastname:req.body.lastname,
+            phone:req.body.phone,
+            email:req.body.email,
+            isAdmin:false,
+            passwordHash: bcrypt.hashSync(req.body.phone+req.body.lastname, bcrypt.genSaltSync(10))
+        })
+        console.log(user)
+        user = await user.save()
+        userId = user.id
+    }
+    let totalPrice = totalPrices.reduce((a, b) => a + b, 0);
+    if (req.body.deliveryMethod == "deliver") totalPrice +=5;
     let order = new Order({
         orderItems: orderItemsIdsResolved,
         shippingAddress1: req.body.shippingAddress1,
@@ -62,7 +80,9 @@ router.post('/', async (req, res) => {
         phone: req.body.phone,
         status: req.body.status,
         totalPrice: totalPrice,
-        user: req.body.user,
+        user: userId,
+        deliveryMethod: req.body.deliveryMethod,
+        orderFullfillDate: req.body.orderFullfillDate
     })
     order = await order.save();
 
@@ -150,13 +170,20 @@ router.get(`/get/userorders/:userid`, async (req, res) => {
 })
 
 router.post('/create-checkout-session', async (req, res) => {
-    const orderItems = req.body;
-    if (!orderItems) {
+    console.log(req.body)
+    const orderItemsIds = req.body.orderItems? req.body.orderItems: undefined;
+    console.log(orderItemsIds)
+    if (!orderItemsIds) {
         return res.status(400).send('Checkout session cannot be create - check the order items')
     }
 
+    const orderItemsIdsResolved = await Promise.all(orderItemsIds.map(async (orderItemId) => {
+        const orderItem = await OrderItem.findById(orderItemId).populate('product', 'price');
+       return orderItem
+    }))
+
     const lineItems = await Promise.all(
-        orderItems.map(async (orderItem) => {
+        orderItemsIdsResolved.map(async (orderItem) => {
             const product = await Product.findById(orderItem.product)
             return {
                 price_data: {
@@ -164,23 +191,95 @@ router.post('/create-checkout-session', async (req, res) => {
                     product_data: {
                         name: product.name,
                     },
-                    unit_amount: product.price * 100,
+                    unit_amount: product.price * 100 * 1.12,
+                    tax_behavior:'exclusive'
                 },
                 quantity: orderItem.quantity,
             }
         })
     )
 
+    if (req.body.deliveryMethod == "deliver"){
+        lineItems.push({
+            price_data: {
+                currency: 'cad',
+                product_data: {
+                    name: 'delivery fee',
+                },
+                unit_amount: 5 * 100,
+                tax_behavior:'exclusive'
+            },
+            quantity: 1,
+        })
+    }
+
     const session = await stripe.checkout.sessions.create({
         line_items: lineItems,
         mode: 'payment',
-        success_url: 'http://localhost:4200/success',
-        cancel_url: 'http://localhost:4200/error'
+        // automatic_tax: {
+        //     enabled: true,
+        //   },
+        success_url: 'https://localhost:4200/#/success',
+        cancel_url: 'https://localhost:4200/'
     });
 
-    res.json({
-        id: session.id
+    const order = await Order.findByIdAndUpdate(req.body.id, {
+        sessionId:session.id
     })
+    if (order){
+        return res.json({
+            id: session.id
+        })
+    } else {
+        return res.status(400).send('Checkout session cannot be create - check the order items')
+    }
+
+})
+
+router.post('/webhook', express.raw({type: 'application/json'}),async (request, response) => {
+    console.log("webhook")
+    const sig = request.headers['stripe-signature'];
+  
+    let event;
+    const endpointSecret=process.env.ENDPOINT_POINT_SECRET
+    try {
+      event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
+    } catch (err) {
+    console.log(err)
+      response.status(400).send(`Webhook Error: ${err.message}`);
+      return;
+    }
+  
+    // Handle the event
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        // Then define and call a function to handle the event payment_intent.succeeded
+        break;
+      // ... handle other event types
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+  
+    // Return a 200 response to acknowledge receipt of the event
+    response.send();
+  });
+
+
+router.post("/charge-clover",async(req,res)=>{
+    if (req.body.cloverToken){
+        const cloverInst = new Clover(process.env.ACCESS_TOKEN,{
+            environment:"sandbox"
+        })
+        console.log(cloverInst)
+        let charge = await cloverInst.charges.create({
+            unit_amount:1358,
+            currency:'cad',
+            source:req.body.cloverToken
+        })
+        console.log(charge)
+    }
+    res.send(200)
 
 })
 

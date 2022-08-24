@@ -6,6 +6,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken')
 const SECRET = process.env.SECRET;
 
+
+router.get('/checkRegistered', async (req,res)=>{
+    if (req.query.email){
+        const user = await User.findOne({ email: req.query.email })
+        if (user){
+            return res.json({userExist:true})
+        } else{
+            return res.json({userExist:false})
+        }
+    } else {
+        return res.status(500).send({error:"missing email in query"})
+    }
+})
+
 router.post('/', async (req, res) => {
     let user = new User({
         ...req.body,
@@ -138,6 +152,8 @@ router.delete('/:id', async (req,res)=>{
         })
     })
 })
+
+
 
 
 

@@ -5,6 +5,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv/config')
 
+var unless = function(middleware, ...paths) {
+    return function(req, res, next) {
+      const pathCheck = paths.some(path => path == req.path);
+      pathCheck ? next() : middleware(req, res, next);
+    };
+  };
+
 const api = process.env.API_URL;
 const productsRouter = require('./routers/products')
 const categoriesRouter = require('./routers/categories')
@@ -16,7 +23,7 @@ app.use(cors())
 app.options('*', cors())
 
 // middleware
-app.use(express.json());
+app.use(unless(express.json(),'/api/v1/orders/webhook'));
 app.use(morgan('tiny'));
 app.use(authJwt)
 app.use('/assets',express.static(__dirname + '/public/uploads'))
@@ -27,7 +34,6 @@ app.use(`${api}/products`, productsRouter)
 app.use(`${api}/categories`, categoriesRouter)
 app.use(`${api}/users`, usersRouter)
 app.use(`${api}/orders`, ordersRouter)
-// app.use('/mall',express.static(__dirname+'/semimall/'))
 
 app.use('/',express.static(__dirname+'/semimall/'))
 

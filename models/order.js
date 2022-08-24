@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 const orderSchema = mongoose.Schema({
+    sessionId:[{
+        type:String
+    }],
     orderItems: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrderItem',
@@ -24,6 +27,7 @@ const orderSchema = mongoose.Schema({
     country: {
         type: String,
         required: true,
+        default:"CA"
     },
     phone: {
         type: String,
@@ -45,6 +49,14 @@ const orderSchema = mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    deliveryMethod:{
+        type: String,
+        required: true,
+    },
+    orderFullfillDate:{
+        type: Date,
+        required:true
+    }
 })
 
 orderSchema.set('toJSON', {
