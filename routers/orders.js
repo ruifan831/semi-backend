@@ -8,7 +8,7 @@ const Clover = require("clover-ecomm-sdk");
 const bcrypt = require('bcryptjs');
 
 const { User } = require('../models/user');
-const stripe = require('stripe')('sk_test_51LaAR7CE6qT7hyzR3uyVhJ0qhYOUOgyZmRclwVmZtOxkApeHL9cpIAOoJWYGICHYHUVX5JP0VBioEHPh384j8Ryt00L27bp24j')
+const stripe = require('stripe')(process.env.SECRET_KEY_STRIPE)
 
 router.get(`/`, async (req, res) => {
     const orderList = await Order.find().populate('user', 'name')
@@ -191,7 +191,7 @@ router.post('/create-checkout-session', async (req, res) => {
                     product_data: {
                         name: product.name,
                     },
-                    unit_amount: product.price * 100 * 1.12,
+                    unit_amount: Math.floor(product.price * 100 * 1.12),
                     tax_behavior:'exclusive'
                 },
                 quantity: orderItem.quantity,
