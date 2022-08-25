@@ -36,60 +36,65 @@ router.get(`/:id`, async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-    const orderItemsIds = Promise.all(req.body.orderItems.map(async (orderItem) => {
-        let newOrderItem = new OrderItem({
-            quantity: orderItem.quantity,
-            product: orderItem.product
+    if (!req.body.id){
+
+        const orderItemsIds = Promise.all(req.body.orderItems.map(async (orderItem) => {
+            let newOrderItem = new OrderItem({
+                quantity: orderItem.quantity,
+                product: orderItem.product
+            })
+    
+            newOrderItem = await newOrderItem.save();
+    
+            return newOrderItem._id;
+        }))
+        const orderItemsIdsResolved = await orderItemsIds;
+    
+        const totalPrices = await Promise.all(orderItemsIdsResolved.map(async (orderItemId) => {
+            const orderItem = await OrderItem.findById(orderItemId).populate('product', 'price');
+            const totalPrice = orderItem.product.price * orderItem.quantity;
+            return totalPrice
+        }))
+        console.log(req.body)
+        let userId = req.body.user
+        if (req.body.user == "guestCheckOut"){
+            let user = new User({
+                firstname:req.body.firstname,
+                lastname:req.body.lastname,
+                phone:req.body.phone,
+                email:req.body.email,
+                isAdmin:false,
+                passwordHash: bcrypt.hashSync(req.body.phone+req.body.lastname, bcrypt.genSaltSync(10))
+            })
+            console.log(user)
+            user = await user.save()
+            userId = user.id
+        }
+        let totalPrice = totalPrices.reduce((a, b) => a + b, 0);
+        if (req.body.deliveryMethod == "deliver") totalPrice +=5;
+        let order = new Order({
+            orderItems: orderItemsIdsResolved,
+            shippingAddress1: req.body.shippingAddress1,
+            shippingAddress2: req.body.shippingAddress2,
+            city: req.body.city,
+            zip: req.body.zip,
+            country: req.body.country,
+            phone: req.body.phone,
+            status: req.body.status,
+            totalPrice: totalPrice,
+            user: userId,
+            deliveryMethod: req.body.deliveryMethod,
+            orderFullfillDate: req.body.orderFullfillDate
         })
-
-        newOrderItem = await newOrderItem.save();
-
-        return newOrderItem._id;
-    }))
-    const orderItemsIdsResolved = await orderItemsIds;
-
-    const totalPrices = await Promise.all(orderItemsIdsResolved.map(async (orderItemId) => {
-        const orderItem = await OrderItem.findById(orderItemId).populate('product', 'price');
-        const totalPrice = orderItem.product.price * orderItem.quantity;
-        return totalPrice
-    }))
-    console.log(req.body)
-    let userId = req.body.user
-    if (req.body.user == "guestCheckOut"){
-        let user = new User({
-            firstname:req.body.firstname,
-            lastname:req.body.lastname,
-            phone:req.body.phone,
-            email:req.body.email,
-            isAdmin:false,
-            passwordHash: bcrypt.hashSync(req.body.phone+req.body.lastname, bcrypt.genSaltSync(10))
-        })
-        console.log(user)
-        user = await user.save()
-        userId = user.id
+        order = await order.save();
+    
+        if (!order)
+            return res.status(400).send('the order cannot be created!')
+    
+        res.send(order);
+    } else {
+        res.json(req.body)
     }
-    let totalPrice = totalPrices.reduce((a, b) => a + b, 0);
-    if (req.body.deliveryMethod == "deliver") totalPrice +=5;
-    let order = new Order({
-        orderItems: orderItemsIdsResolved,
-        shippingAddress1: req.body.shippingAddress1,
-        shippingAddress2: req.body.shippingAddress2,
-        city: req.body.city,
-        zip: req.body.zip,
-        country: req.body.country,
-        phone: req.body.phone,
-        status: req.body.status,
-        totalPrice: totalPrice,
-        user: userId,
-        deliveryMethod: req.body.deliveryMethod,
-        orderFullfillDate: req.body.orderFullfillDate
-    })
-    order = await order.save();
-
-    if (!order)
-        return res.status(400).send('the order cannot be created!')
-
-    res.send(order);
 })
 
 router.put('/:id', async (req, res) => {
@@ -219,8 +224,8 @@ router.post('/create-checkout-session', async (req, res) => {
         // automatic_tax: {
         //     enabled: true,
         //   },
-        success_url: 'https://localhost:4200/#/success',
-        cancel_url: 'https://localhost:4200/'
+        success_url: process.env.DOMAIN+'#/success',
+        cancel_url: process.env.DOMAIN+'#/checkou'
     });
 
     const order = await Order.findByIdAndUpdate(req.body.id, {
