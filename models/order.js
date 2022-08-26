@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const orderSchema = mongoose.Schema({
-    sessionId:[{
+    sessionId:{
         type:String
-    }],
+    },
     orderItems: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'OrderItem',
@@ -53,6 +53,9 @@ const orderSchema = mongoose.Schema({
     orderFullfillDate:{
         type: Date,
         required:true
+    },
+    paymentIntent:{
+        type: String
     }
 })
 

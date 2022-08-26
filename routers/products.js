@@ -21,9 +21,8 @@ const storage = multer.diskStorage({
     cb(uploadError, "public/uploads/image");
   },
   filename: function (req, file, cb) {
-    const filename = file.originalname.replace(" ", "-");
     const extension = FILE_TYPE_MAP[file.mimetype];
-    cb(null, `${filename}-${Date.now()}.${extension}`);
+    cb(null, `${Date.now()}.${extension}`);
   },
 });
 
@@ -45,17 +44,23 @@ router.get("/", async (req, res) => {
   res.send(productList);
 });
 
-router.post("/", uploadOptions.single("image"), async (req, res) => {
+router.post("/", uploadOptions.array('images',5), async (req, res) => {
   const category = await Category.findById(req.body.category);
   if (!category) return res.status(400).send("Invalid Category");
 
-  const file = req.file;
-  if (!file) return res.status(400).send("No image in the request");
-  const filename = req.file.filename;
+  const files = req.files;
+  let imagesPaths = [];
   const basePath = `${req.protocol}://${req.get("host")}/assets/image/`;
+  if (files) {
+    files.map((file) => {
+      imagesPaths.push(`${basePath}${file.filename}`);
+    });
+    }
+
   let product = new Product({
     ...req.body,
-    image: `${basePath}${filename}`,
+    image:imagesPaths[0],
+    images: imagesPaths,
   });
   product = await product.save();
   if (!product) return res.status(500).send("the product cannot be created");
@@ -66,11 +71,11 @@ router.post("/", uploadOptions.single("image"), async (req, res) => {
 router.get("/:id", async (req, res) => {
   const product = await Product.findById(req.params.id).populate("category");
   if (!product) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "The category with the given ID was not found.",
     });
   }
-  res.status(200).send(product);
+  return res.status(200).send(product);
 });
 
 router.put("/:id", uploadOptions.single("image"), async (req, res) => {
@@ -83,9 +88,9 @@ router.put("/:id", uploadOptions.single("image"), async (req, res) => {
   if (!product) return res.status(400).send("Invalid Product");
   const file = req.file;
   let imagePath;
-
   if (file) {
     const filename = req.file.filename;
+    console.log(filename)
     const basePath = `${req.protocol}://${req.get("host")}/assets/image/`;
     imagePath = `${basePath}${filename}`;
   } else {

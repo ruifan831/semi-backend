@@ -37,7 +37,6 @@ const productSchema = mongoose.Schema({
         type: Number,
         required: true,
         min: 0,
-        max: 255
     },
     rating: {
         type: Number,
@@ -50,6 +49,10 @@ const productSchema = mongoose.Schema({
     isFeatured: {
         type: Boolean,
         default: false,
+    },
+    launch:{
+        type:Boolean,
+        default:false
     },
     dateCreated: {
         type: Date,

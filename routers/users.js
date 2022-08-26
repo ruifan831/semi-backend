@@ -10,6 +10,7 @@ const SECRET = process.env.SECRET;
 router.get('/checkRegistered', async (req,res)=>{
     if (req.query.email){
         const user = await User.findOne({ email: req.query.email })
+        console.log(user)
         if (user){
             return res.json({userExist:true})
         } else{

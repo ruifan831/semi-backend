@@ -55,7 +55,6 @@ router.post('/', async (req, res) => {
             const totalPrice = orderItem.product.price * orderItem.quantity;
             return totalPrice
         }))
-        console.log(req.body)
         let userId = req.body.user
         if (req.body.user == "guestCheckOut"){
             let user = new User({
@@ -71,7 +70,7 @@ router.post('/', async (req, res) => {
             userId = user.id
         }
         let totalPrice = totalPrices.reduce((a, b) => a + b, 0);
-        if (req.body.deliveryMethod == "deliver") totalPrice +=5;
+        req.body.deliveryMethod == "deliver" && totalPrice<150 ? totalPrice = totalPrice*1.05 + 10 : totalPrice*1.05;
         let order = new Order({
             orderItems: orderItemsIdsResolved,
             shippingAddress1: req.body.shippingAddress1,
@@ -81,7 +80,7 @@ router.post('/', async (req, res) => {
             country: req.body.country,
             phone: req.body.phone,
             status: req.body.status,
-            totalPrice: totalPrice,
+            totalPrice: totalPrice.toFixed(2),
             user: userId,
             deliveryMethod: req.body.deliveryMethod,
             orderFullfillDate: req.body.orderFullfillDate
@@ -101,8 +100,15 @@ router.put('/:id', async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) {
         return res.status(400).send("Invalid product id")
     }
+    let session
+    try {
+        session = await stripe.checkout.sessions.retrieve(req.body.sessionId)
+    } catch (error) {
+        return res.status(400).send(error)
+    }
     const order = await Order.findByIdAndUpdate(req.params.id, {
-        ...req.body
+        ...req.body,
+        paymentIntent:session.payment_intent
     }, { new: true })
     if (!order) return res.status(500).send('the category cannot be created!')
 
@@ -186,33 +192,34 @@ router.post('/create-checkout-session', async (req, res) => {
         const orderItem = await OrderItem.findById(orderItemId).populate('product', 'price');
        return orderItem
     }))
-
+    let totalPrice = 0
     const lineItems = await Promise.all(
         orderItemsIdsResolved.map(async (orderItem) => {
             const product = await Product.findById(orderItem.product)
+            totalPrice += product.price*orderItem.quantity
             return {
                 price_data: {
                     currency: 'cad',
                     product_data: {
                         name: product.name,
                     },
-                    unit_amount: Math.floor(product.price * 100 * 1.12),
-                    tax_behavior:'exclusive'
+                    unit_amount: Math.floor(product.price * 100 * 1.05),
+                    tax_behavior:'inclusive'
                 },
                 quantity: orderItem.quantity,
             }
         })
     )
 
-    if (req.body.deliveryMethod == "deliver"){
+    if (req.body.deliveryMethod == "deliver" && totalPrice<150){
         lineItems.push({
             price_data: {
                 currency: 'cad',
                 product_data: {
                     name: 'delivery fee',
                 },
-                unit_amount: 5 * 100,
-                tax_behavior:'exclusive'
+                unit_amount: 10 * 100,
+                tax_behavior:'inclusive'
             },
             quantity: 1,
         })
@@ -225,8 +232,9 @@ router.post('/create-checkout-session', async (req, res) => {
         //     enabled: true,
         //   },
         success_url: process.env.DOMAIN+'#/success',
-        cancel_url: process.env.DOMAIN+'#/checkou'
+        cancel_url: process.env.DOMAIN+'#/checkout'
     });
+    console.log(session.id)
 
     const order = await Order.findByIdAndUpdate(req.body.id, {
         sessionId:session.id
@@ -239,6 +247,24 @@ router.post('/create-checkout-session', async (req, res) => {
         return res.status(400).send('Checkout session cannot be create - check the order items')
     }
 
+})
+
+
+router.post('/checkPaymentStatus',async(req,res)=>{
+    if (req.body.sessionId && req.body.orderId){
+        let order = await Order.findById(req.body.orderId)
+        if (order.sessionId == req.body.sessionId){
+            session = await stripe.checkout.sessions.retrieve(req.body.sessionId)
+            if (session.payment_status == 'paid'){
+                order.status="1"
+                await order.save()
+                return res.send({status:session.status})
+            }  else{
+                return res.send({status:session.status})
+            }
+        }
+    }
+    res.send({status:"incomplete"})
 })
 
 router.post('/webhook', express.raw({type: 'application/json'}),async (request, response) => {
