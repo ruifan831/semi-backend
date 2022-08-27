@@ -36,78 +36,79 @@ router.get(`/:id`, async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-    if (!req.body.id){
-        const products = await Promise.all(req.body.orderItems.map(async (orderItem)=>{
-            return await Product.findById(orderItem.product)
-        }))
-        const productDict = {}
-        products.forEach(product=>{
-            productDict[product.id]=product
-        })
-        
-        // check if all order items are in stock
-        let totalPrice=0;
-        const allInStock = req.body.orderItems.map(orderItem=>{
-            totalPrice += (productDict[orderItem.product].price * orderItem.quantity)
-            return productDict[orderItem.product].countInStock >= orderItem.quantity;
-        }).every((instock)=>instock)
-        
-        if (!allInStock){
-            return res.status(500).send({error:"out of stock"})
-        }
 
-
-        req.body.deliveryMethod == "deliver" && totalPrice<150 ? totalPrice = totalPrice*1.05 + 10 : totalPrice*1.05;
-
-
-        const orderItemsIds = Promise.all(req.body.orderItems.map(async (orderItem) => {
-            let newOrderItem = new OrderItem({
-                quantity: orderItem.quantity,
-                product: orderItem.product
-            })
-            newOrderItem = await newOrderItem.save();
-    
-            return newOrderItem._id;
-        }))
-        const orderItemsIdsResolved = await orderItemsIds;
-    
-        let userId = req.body.user
-        if (req.body.user == "guestCheckOut"){
-            let user = new User({
-                firstname:req.body.firstname,
-                lastname:req.body.lastname,
-                phone:req.body.phone,
-                email:req.body.email,
-                isAdmin:false,
-                passwordHash: bcrypt.hashSync(req.body.email+req.body.lastname, bcrypt.genSaltSync(10))
-            })
-            user = await user.save()
-            userId = user.id
-        }
-
-        let order = new Order({
-            orderItems: orderItemsIdsResolved,
-            shippingAddress1: req.body.shippingAddress1,
-            shippingAddress2: req.body.shippingAddress2,
-            city: req.body.city,
-            zip: req.body.zip,
-            country: req.body.country,
-            phone: req.body.phone,
-            status: req.body.status,
-            totalPrice: totalPrice.toFixed(2),
-            user: userId,
-            deliveryMethod: req.body.deliveryMethod,
-            orderFullfillDate: req.body.orderFullfillDate
-        })
-        order = await order.save();
-    
-        if (!order)
-            return res.status(400).send('the order cannot be created!')
-    
-        res.send(order);
-    } else {
-        res.json(req.body)
+    if (req.body.id){
+        await Order.findByIdAndRemove(req.body.id)
     }
+
+    const products = await Promise.all(req.body.orderItems.map(async (orderItem)=>{
+        return await Product.findById(orderItem.product)
+    }))
+    const productDict = {}
+    products.forEach(product=>{
+        productDict[product.id]=product
+    })
+    
+    // check if all order items are in stock
+    let totalPrice=0;
+    const allInStock = req.body.orderItems.map(orderItem=>{
+        totalPrice += (productDict[orderItem.product].price * orderItem.quantity)
+        return productDict[orderItem.product].countInStock >= orderItem.quantity;
+    }).every((instock)=>instock)
+    
+    if (!allInStock){
+        return res.status(500).send({error:"out of stock"})
+    }
+
+
+    req.body.deliveryMethod == "deliver" && totalPrice<150 ? totalPrice = totalPrice*1.05 + 10 : totalPrice*1.05;
+
+
+    const orderItemsIds = Promise.all(req.body.orderItems.map(async (orderItem) => {
+        let newOrderItem = new OrderItem({
+            quantity: orderItem.quantity,
+            product: orderItem.product
+        })
+        newOrderItem = await newOrderItem.save();
+
+        return newOrderItem._id;
+    }))
+    const orderItemsIdsResolved = await orderItemsIds;
+
+    let userId = req.body.user
+    if (req.body.user == "guestCheckOut"){
+        let user = new User({
+            firstname:req.body.firstname,
+            lastname:req.body.lastname,
+            phone:req.body.phone,
+            email:req.body.email,
+            isAdmin:false,
+            passwordHash: bcrypt.hashSync(req.body.email+req.body.lastname, bcrypt.genSaltSync(10))
+        })
+        user = await user.save()
+        userId = user.id
+    }
+
+    let order = new Order({
+        orderItems: orderItemsIdsResolved,
+        shippingAddress1: req.body.shippingAddress1,
+        shippingAddress2: req.body.shippingAddress2,
+        city: req.body.city,
+        zip: req.body.zip,
+        country: req.body.country,
+        phone: req.body.phone,
+        status: req.body.status,
+        totalPrice: totalPrice.toFixed(2),
+        user: userId,
+        deliveryMethod: req.body.deliveryMethod,
+        orderFullfillDate: req.body.orderFullfillDate
+    })
+    order = await order.save();
+
+    if (!order)
+        return res.status(400).send('the order cannot be created!')
+
+    res.send(order);
 })
 
 router.put('/:id', async (req, res) => {
