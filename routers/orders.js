@@ -11,7 +11,7 @@ const { User } = require('../models/user');
 const stripe = require('stripe')(process.env.SECRET_KEY_STRIPE)
 
 router.get(`/`, async (req, res) => {
-    const orderList = await Order.find().populate('user', 'name')
+    const orderList = await Order.find().populate('user', 'firstname lastname')
         .populate({ path: 'orderItems' }).sort({ 'dateOrdered': -1 });
 
     if (!orderList) {
@@ -22,7 +22,7 @@ router.get(`/`, async (req, res) => {
 
 router.get(`/:id`, async (req, res) => {
     const order = await Order.findById(req.params.id)
-        .populate('user', 'name')
+        .populate('user', 'firstname lastname')
         .populate({
             path: 'orderItems', populate: {
                 path: 'product', populate: 'category'
@@ -37,24 +37,40 @@ router.get(`/:id`, async (req, res) => {
 
 router.post('/', async (req, res) => {
     if (!req.body.id){
+        const products = await Promise.all(req.body.orderItems.map(async (orderItem)=>{
+            return await Product.findById(orderItem.product)
+        }))
+        const productDict = {}
+        products.forEach(product=>{
+            productDict[product.id]=product
+        })
+        
+        // check if all order items are in stock
+        let totalPrice=0;
+        const allInStock = req.body.orderItems.map(orderItem=>{
+            totalPrice += (productDict[orderItem.product].price * orderItem.quantity)
+            return productDict[orderItem.product].countInStock >= orderItem.quantity;
+        }).every((instock)=>instock)
+        
+        if (!allInStock){
+            return res.status(500).send({error:"out of stock"})
+        }
+
+
+        req.body.deliveryMethod == "deliver" && totalPrice<150 ? totalPrice = totalPrice*1.05 + 10 : totalPrice*1.05;
+
 
         const orderItemsIds = Promise.all(req.body.orderItems.map(async (orderItem) => {
             let newOrderItem = new OrderItem({
                 quantity: orderItem.quantity,
                 product: orderItem.product
             })
-    
             newOrderItem = await newOrderItem.save();
     
             return newOrderItem._id;
         }))
         const orderItemsIdsResolved = await orderItemsIds;
     
-        const totalPrices = await Promise.all(orderItemsIdsResolved.map(async (orderItemId) => {
-            const orderItem = await OrderItem.findById(orderItemId).populate('product', 'price');
-            const totalPrice = orderItem.product.price * orderItem.quantity;
-            return totalPrice
-        }))
         let userId = req.body.user
         if (req.body.user == "guestCheckOut"){
             let user = new User({
@@ -65,12 +81,10 @@ router.post('/', async (req, res) => {
                 isAdmin:false,
                 passwordHash: bcrypt.hashSync(req.body.email+req.body.lastname, bcrypt.genSaltSync(10))
             })
-            console.log(user)
             user = await user.save()
             userId = user.id
         }
-        let totalPrice = totalPrices.reduce((a, b) => a + b, 0);
-        req.body.deliveryMethod == "deliver" && totalPrice<150 ? totalPrice = totalPrice*1.05 + 10 : totalPrice*1.05;
+
         let order = new Order({
             orderItems: orderItemsIdsResolved,
             shippingAddress1: req.body.shippingAddress1,
