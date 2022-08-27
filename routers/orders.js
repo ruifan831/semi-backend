@@ -63,7 +63,7 @@ router.post('/', async (req, res) => {
                 phone:req.body.phone,
                 email:req.body.email,
                 isAdmin:false,
-                passwordHash: bcrypt.hashSync(req.body.phone+req.body.lastname, bcrypt.genSaltSync(10))
+                passwordHash: bcrypt.hashSync(req.body.email+req.body.lastname, bcrypt.genSaltSync(10))
             })
             console.log(user)
             user = await user.save()
