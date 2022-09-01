@@ -37,8 +37,19 @@ router.get(`/:id`, async (req, res) => {
 
 router.post('/', async (req, res) => {
 
+    // If id exist in request body, which means order is created but not paid.
+    // Delete this order and related order item and restore product's countInStock
     if (req.body.id){
-        await Order.findByIdAndRemove(req.body.id)
+        const order = await Order.findById(req.body.id)
+        if (order){
+            const orderItems = await Promise.all(order.orderItems.map( async (orderItemId)=>{
+                let orderItem = await OrderItem.findById(orderItemId)
+                await Product.findByIdAndUpdate(orderItem.product,{$inc:{countInStock:orderItem.quantity}})
+                return await orderItem.delete()
+            }))
+            console.log(orderItems)
+            await order.delete()
+        }
     }
 
     const products = await Promise.all(req.body.orderItems.map(async (orderItem)=>{
@@ -60,7 +71,7 @@ router.post('/', async (req, res) => {
         return res.status(500).send({error:"out of stock"})
     }
 
-
+    // Calculate total price
     req.body.deliveryMethod == "deliver" && totalPrice<150 ? totalPrice = totalPrice*1.05 + 10 : totalPrice*1.05;
 
 
@@ -70,7 +81,7 @@ router.post('/', async (req, res) => {
             product: orderItem.product
         })
         newOrderItem = await newOrderItem.save();
-
+        await Product.findByIdAndUpdate(orderItem.product,{$inc:{countInStock:-orderItem.quantity}})
         return newOrderItem._id;
     }))
     const orderItemsIdsResolved = await orderItemsIds;
@@ -196,9 +207,7 @@ router.get(`/get/userorders/:userid`, async (req, res) => {
 })
 
 router.post('/create-checkout-session', async (req, res) => {
-    console.log(req.body)
     const orderItemsIds = req.body.orderItems? req.body.orderItems: undefined;
-    console.log(orderItemsIds)
     if (!orderItemsIds) {
         return res.status(400).send('Checkout session cannot be create - check the order items')
     }
@@ -249,7 +258,6 @@ router.post('/create-checkout-session', async (req, res) => {
         success_url: process.env.DOMAIN+'#/success',
         cancel_url: process.env.DOMAIN+'#/checkout'
     });
-    console.log(session.id)
 
     const order = await Order.findByIdAndUpdate(req.body.id, {
         sessionId:session.id
