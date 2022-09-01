@@ -252,9 +252,6 @@ router.post('/create-checkout-session', async (req, res) => {
     const session = await stripe.checkout.sessions.create({
         line_items: lineItems,
         mode: 'payment',
-        // automatic_tax: {
-        //     enabled: true,
-        //   },
         success_url: process.env.DOMAIN+'#/success',
         cancel_url: process.env.DOMAIN+'#/checkout'
     });
