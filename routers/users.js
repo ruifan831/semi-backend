@@ -70,17 +70,28 @@ router.get('/:id', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
     const userExist = await User.findById(req.params.id)
-    if (req.body.password) {
-        newPassword = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10))
-    } else {
-        newPassword = userExist.passwordHash;
+    if (req.token.payload.isAdmin){
+        if (req.body.password) {
+            newPassword = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10))
+        } else {
+            newPassword = userExist.passwordHash;
+        }
+    } else{
+        if (req.body.password){
+            if (bcrypt.compareSync(req.body.oldpassword, userExist.passwordHash)){
+                newPassword = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync(10))
+            } else{
+                return res.status(400).send('password incorrect')
+            }
+        } else{
+            newPassword = userExist.passwordHash;
+        }
     }
     const user = await User.findByIdAndUpdate(req.params.id, {
         ...req.body,
         passwordHash: newPassword
-    }, { new: true })
+    }, { new: true }).select('-passwordHash')
     if (!user) return res.status(400).send('the category cannot be created!')
-
     res.send(user);
 })
 
