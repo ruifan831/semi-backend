@@ -317,21 +317,4 @@ router.post('/webhook', express.raw({type: 'application/json'}),async (request, 
   });
 
 
-router.post("/charge-clover",async(req,res)=>{
-    if (req.body.cloverToken){
-        const cloverInst = new Clover(process.env.ACCESS_TOKEN,{
-            environment:"sandbox"
-        })
-        console.log(cloverInst)
-        let charge = await cloverInst.charges.create({
-            unit_amount:1358,
-            currency:'cad',
-            source:req.body.cloverToken
-        })
-        console.log(charge)
-    }
-    res.send(200)
-
-})
-
 module.exports = router;
