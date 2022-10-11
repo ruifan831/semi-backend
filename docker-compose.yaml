@@ -5,7 +5,6 @@ services:
         container_name: node-semisugar
         ports:
             - "3001:3000"
-        restarts: always
         environment:
             API_URl: /api/v1
             CONNECTION_STRING: mongodb+srv://semi-sugar:7789989865_Rex@cluster0.uvr70.mongodb.net/semi-database-prod?retryWrites=true&w=majority
@@ -13,3 +12,4 @@ services:
             DOMAIN: https://www.semisugar.ca/
             SECRET: semisemi
             SECRET_KEY_STRIPE: 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
+            ENDPOINT_POINT_SECRET: whsec_f69329d9badff82b4a076446be0368ec554bd71d31357667dbf4e1881f8f857f
