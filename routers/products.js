@@ -29,6 +29,7 @@ const storage = multer.diskStorage({
 const uploadOptions = multer({ storage: storage });
 
 router.get("/", async (req, res) => {
+  console.log(req.baseUrl)
   let filter = {};
   if (req.query.categories) {
     filter = {
